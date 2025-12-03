@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}PA Co-Pilot - Metrics Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-3"><i class="bi bi-graph-up me-2"></i>Performance Metrics</h2>
+        <p class="text-muted">Track the impact of AI-assisted prior authorization review</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="metric-value">{{ metrics.total_cases }}</div>
+            <div class="metric-label">Total Cases</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="metric-value text-success">{{ metrics.decided_cases }}</div>
+            <div class="metric-label">Decisions Made</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="metric-value text-primary">{{ metrics.avg_turnaround_minutes }}</div>
+            <div class="metric-label">Avg Turnaround (min)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            {% set compliance_rate = ((metrics.decided_cases / metrics.total_cases * 100) if metrics.total_cases > 0 else 0)|round(1) %}
+            <div class="metric-value text-info">{{ compliance_rate }}%</div>
+            <div class="metric-label">Completion Rate</div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-pie-chart me-2"></i>Decision Distribution
+            </div>
+            <div class="card-body">
+                {% if metrics.decisions %}
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="p-3 rounded bg-success bg-opacity-25">
+                            <h3 class="text-success mb-0">{{ metrics.decisions.get('approve', 0) }}</h3>
+                            <small class="text-muted">Approved</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded bg-danger bg-opacity-25">
+                            <h3 class="text-danger mb-0">{{ metrics.decisions.get('deny', 0) }}</h3>
+                            <small class="text-muted">Denied</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded bg-warning bg-opacity-25">
+                            <h3 class="text-warning mb-0">{{ metrics.decisions.get('pend', 0) }}</h3>
+                            <small class="text-muted">Pended</small>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-pie-chart" style="font-size: 3rem;"></i>
+                    <p class="mt-3">No decisions recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-speedometer me-2"></i>Case Complexity
+            </div>
+            <div class="card-body">
+                {% if metrics.complexity_distribution %}
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="p-3 rounded bg-success bg-opacity-25">
+                            <h3 class="text-success mb-0">{{ metrics.complexity_distribution.get('low', 0) }}</h3>
+                            <small class="text-muted">Low Complexity</small>
+                            <p class="mb-0 mt-2 small text-muted">All criteria met</p>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded bg-danger bg-opacity-25">
+                            <h3 class="text-danger mb-0">{{ metrics.complexity_distribution.get('high', 0) }}</h3>
+                            <small class="text-muted">High Complexity</small>
+                            <p class="mb-0 mt-2 small text-muted">Requires MD attention</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-speedometer" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Process cases to see complexity distribution</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-graph-up-arrow me-2"></i>Before/After Comparison
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Metric</th>
+                                <th class="text-center">Pre-AI (Typical)</th>
+                                <th class="text-center">Post-AI (Target)</th>
+                                <th class="text-center">Improvement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i class="bi bi-clock me-2"></i>PA Turnaround Time</td>
+                                <td class="text-center">72-120 hrs</td>
+                                <td class="text-center text-success">12-24 hrs</td>
+                                <td class="text-center"><span class="badge bg-success">55-70% faster</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-person-badge me-2"></i>Medical Director Review Time</td>
+                                <td class="text-center">25-40 min/case</td>
+                                <td class="text-center text-success">6-10 min/case</td>
+                                <td class="text-center"><span class="badge bg-success">70-78% reduction</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-check-circle me-2"></i>SLA Compliance</td>
+                                <td class="text-center">82-88%</td>
+                                <td class="text-center text-success">97-99%</td>
+                                <td class="text-center"><span class="badge bg-success">>98% adherence</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-arrow-repeat me-2"></i>Appeals Rate</td>
+                                <td class="text-center">High</td>
+                                <td class="text-center text-success">30-45% lower</td>
+                                <td class="text-center"><span class="badge bg-success">Significant reduction</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-exclamation-triangle me-2"></i>Provider Complaints</td>
+                                <td class="text-center">Frequent</td>
+                                <td class="text-center text-success">Rare/escalation only</td>
+                                <td class="text-center"><span class="badge bg-success">40-60% reduction</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-heart-pulse me-2"></i>Therapy Drop-offs</td>
+                                <td class="text-center">12-18%</td>
+                                <td class="text-center text-success">&lt;5%</td>
+                                <td class="text-center"><span class="badge bg-success">3-4x better</span></td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-currency-dollar me-2"></i>Cost Avoidance</td>
+                                <td class="text-center">Minimal</td>
+                                <td class="text-center text-success">$1.5-2.5M annually</td>
+                                <td class="text-center"><span class="badge bg-success">Significant savings</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if decided_cases %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-check me-2"></i>Recent Decisions
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Title</th>
+                                <th>AI Recommendation</th>
+                                <th>Final Decision</th>
+                                <th>Complexity</th>
+                                <th>Turnaround</th>
+                                <th>Decided At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for case in decided_cases[:10] %}
+                            <tr>
+                                <td><a href="/case/{{ case.id }}">{{ case.id }}</a></td>
+                                <td>{{ case.title[:40] }}{% if case.title|length > 40 %}...{% endif %}</td>
+                                <td>
+                                    {% if case.ai_recommendation %}
+                                    <span class="badge bg-{% if case.ai_recommendation.recommendation == 'approve' %}success{% elif case.ai_recommendation.recommendation == 'deny' %}danger{% else %}warning{% endif %}">
+                                        {{ case.ai_recommendation.recommendation|upper }}
+                                    </span>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if case.final_decision == 'approve' %}success{% elif case.final_decision == 'deny' %}danger{% else %}warning{% endif %}">
+                                        {{ case.final_decision|upper }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if case.complexity %}
+                                    <span class="badge complexity-{{ case.complexity }}">{{ case.complexity }}</span>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>{{ case.turnaround_minutes or '-' }} min</td>
+                                <td>{{ case.decided_at[:16] if case.decided_at else '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5><i class="bi bi-lightbulb me-2"></i>Qualitative Gains</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>Clinically fair and consistent decisions</li>
+                            <li>Higher provider trust through transparency</li>
+                            <li>Better member outcomes due to faster approvals</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>Improved audit & compliance defensibility</li>
+                            <li>Medical team focuses on clinical value, not admin</li>
+                            <li>Reduced burnout for Medical Directors</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

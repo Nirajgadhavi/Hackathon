@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}PA Co-Pilot - Case {{ case.id }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Cases</a></li>
+                <li class="breadcrumb-item active">{{ case.id }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-1">{{ case.title }}</h3>
+                <p class="text-muted mb-0">
+                    <span class="me-3"><i class="bi bi-capsule me-1"></i>{{ case.drug_name or 'N/A' }}</span>
+                    <span class="me-3"><i class="bi bi-clipboard2-pulse me-1"></i>{{ case.indication or 'N/A' }}</span>
+                    <span class="status-badge status-{{ case.status }}">{{ case.status }}</span>
+                    {% if case.complexity %}
+                    <span class="badge complexity-{{ case.complexity }} ms-2">{{ case.complexity }} complexity</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                {% if case.status == 'pending' %}
+                <button class="btn btn-process btn-primary btn-lg" onclick="processCase('{{ case.id }}')">
+                    <i class="bi bi-robot me-2"></i>Process with AI
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if request.query_params.get('decided') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i>Decision has been recorded successfully!
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-file-text me-2"></i>Raw PA Request
+            </div>
+            <div class="card-body">
+                <div class="raw-text-box">{{ case.raw_text }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-card-checklist me-2"></i>AI-Extracted Summary
+            </div>
+            <div class="card-body">
+                {% if case.extracted_data %}
+                <div class="summary-card p-3 rounded mb-3">
+                    <h6 class="mb-3"><i class="bi bi-person me-2"></i>Patient Information</h6>
+                    {% if case.extracted_data.patient_info %}
+                    <div class="row mb-2">
+                        <div class="col-4 text-muted">Name:</div>
+                        <div class="col-8">{{ case.extracted_data.patient_info.name or 'N/A' }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-4 text-muted">DOB:</div>
+                        <div class="col-8">{{ case.extracted_data.patient_info.dob or 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-4 text-muted">Member ID:</div>
+                        <div class="col-8">{{ case.extracted_data.patient_info.member_id or 'N/A' }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body p-3">
+                                <h6><i class="bi bi-clipboard2-pulse me-2"></i>Diagnosis</h6>
+                                {% if case.extracted_data.diagnosis %}
+                                <p class="mb-1"><strong>{{ case.extracted_data.diagnosis.primary or 'N/A' }}</strong></p>
+                                <small class="text-muted">{{ case.extracted_data.diagnosis.icd10 or '' }}</small>
+                                {% if case.extracted_data.diagnosis.histology %}
+                                <p class="mb-0 mt-1"><small>{{ case.extracted_data.diagnosis.histology }}</small></p>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body p-3">
+                                <h6><i class="bi bi-layers me-2"></i>Disease Stage</h6>
+                                {% if case.extracted_data.disease_stage %}
+                                <p class="mb-1"><strong>{{ case.extracted_data.disease_stage.stage or 'N/A' }}</strong></p>
+                                {% if case.extracted_data.disease_stage.tnm %}
+                                <small class="text-muted">{{ case.extracted_data.disease_stage.tnm }}</small>
+                                {% endif %}
+                                {% if case.extracted_data.disease_stage.metastatic_sites %}
+                                <p class="mb-0 mt-1"><small>Mets: {{ case.extracted_data.disease_stage.metastatic_sites|join(', ') }}</small></p>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card bg-light mb-3">
+                    <div class="card-body p-3">
+                        <h6><i class="bi bi-dna me-2"></i>Biomarkers</h6>
+                        {% if case.extracted_data.biomarkers %}
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <strong>PD-L1:</strong><br>
+                                {% if case.extracted_data.biomarkers.pd_l1 %}
+                                <span class="badge bg-{% if case.extracted_data.biomarkers.pd_l1.status == 'positive' %}success{% elif case.extracted_data.biomarkers.pd_l1.status == 'negative' %}danger{% else %}secondary{% endif %}">
+                                    {{ case.extracted_data.biomarkers.pd_l1.status or 'N/A' }}
+                                </span>
+                                {% if case.extracted_data.biomarkers.pd_l1.value %}
+                                <small>({{ case.extracted_data.biomarkers.pd_l1.value }})</small>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <strong>EGFR:</strong><br>
+                                {% if case.extracted_data.biomarkers.egfr %}
+                                <span class="badge bg-{% if case.extracted_data.biomarkers.egfr.status == 'wild type' %}success{% elif 'mutated' in (case.extracted_data.biomarkers.egfr.status or '')|lower %}danger{% else %}secondary{% endif %}">
+                                    {{ case.extracted_data.biomarkers.egfr.status or 'N/A' }}
+                                </span>
+                                {% if case.extracted_data.biomarkers.egfr.mutation %}
+                                <small>({{ case.extracted_data.biomarkers.egfr.mutation }})</small>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <strong>ALK:</strong><br>
+                                {% if case.extracted_data.biomarkers.alk %}
+                                <span class="badge bg-{% if case.extracted_data.biomarkers.alk.status == 'negative' %}success{% elif case.extracted_data.biomarkers.alk.status == 'positive' %}danger{% else %}secondary{% endif %}">
+                                    {{ case.extracted_data.biomarkers.alk.status or 'N/A' }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body p-3">
+                                <h6><i class="bi bi-activity me-2"></i>Performance Status</h6>
+                                {% if case.extracted_data.performance_status %}
+                                <p class="mb-0"><strong>ECOG {{ case.extracted_data.performance_status.ecog or 'N/A' }}</strong></p>
+                                <small class="text-muted">{{ case.extracted_data.performance_status.description or '' }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body p-3">
+                                <h6><i class="bi bi-capsule me-2"></i>Prior Therapy</h6>
+                                {% if case.extracted_data.prior_therapy %}
+                                <p class="mb-0">
+                                    {% if case.extracted_data.prior_therapy.has_prior_systemic %}
+                                    <span class="badge bg-warning">Has Prior Treatment</span>
+                                    {% else %}
+                                    <span class="badge bg-success">No Prior Systemic</span>
+                                    {% endif %}
+                                </p>
+                                {% if case.extracted_data.prior_therapy.treatments %}
+                                <small class="text-muted">{{ case.extracted_data.prior_therapy.treatments|join(', ') }}</small>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-robot" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Click "Process with AI" to extract clinical data</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-clipboard-check me-2"></i>Policy Criteria Evaluation
+            </div>
+            <div class="card-body">
+                {% if case.criteria_evaluation %}
+                <h6 class="mb-3">
+                    <strong>{{ policy.drug_name }}</strong> - {{ policy.indication }}
+                </h6>
+                
+                {% for criterion in case.criteria_evaluation %}
+                <div class="p-3 mb-2 rounded criteria-{{ criterion.status }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>{{ criterion.id }}: {{ criterion.description }}</strong>
+                            {% if criterion.required %}<span class="badge bg-dark ms-2">Required</span>{% endif %}
+                        </div>
+                        <span class="badge bg-{% if criterion.status == 'met' %}success{% elif criterion.status == 'unmet' %}danger{% else %}warning{% endif %}">
+                            {{ criterion.status|upper }}
+                        </span>
+                    </div>
+                    {% if criterion.evidence %}
+                    <p class="mb-0 mt-2 small"><i class="bi bi-info-circle me-1"></i>{{ criterion.evidence }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <hr>
+                <h6>Clinical Guidelines</h6>
+                {% for guideline in case.policy_guidelines or [] %}
+                <div class="guideline-snippet">
+                    <strong>{{ guideline.source }}:</strong>
+                    <p class="mb-0 mt-1">{{ guideline.text }}</p>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-list-check" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Process case to evaluate policy criteria</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-lightbulb me-2"></i>AI Recommendation
+            </div>
+            <div class="card-body">
+                {% if case.ai_recommendation %}
+                <div class="p-4 rounded mb-4 recommendation-{{ case.ai_recommendation.recommendation }}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">
+                            {% if case.ai_recommendation.recommendation == 'approve' %}
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>APPROVE
+                            {% elif case.ai_recommendation.recommendation == 'deny' %}
+                            <i class="bi bi-x-circle-fill text-danger me-2"></i>DENY
+                            {% else %}
+                            <i class="bi bi-pause-circle-fill text-warning me-2"></i>PEND
+                            {% endif %}
+                        </h4>
+                        <div>
+                            <span class="badge bg-secondary me-2">{{ case.ai_recommendation.confidence or 'medium' }} confidence</span>
+                            <span class="badge complexity-{{ case.complexity }}">{{ case.complexity }} complexity</span>
+                        </div>
+                    </div>
+                    <p class="mb-0">{{ case.ai_recommendation.clinical_rationale or '' }}</p>
+                </div>
+                
+                <h6><i class="bi bi-check2-square me-2"></i>Key Reasons</h6>
+                <ul class="mb-3">
+                    {% for reason in case.ai_recommendation.primary_reasons or [] %}
+                    <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+                
+                {% if case.ai_recommendation.information_gaps %}
+                <h6><i class="bi bi-question-circle me-2"></i>Information Gaps</h6>
+                <ul class="mb-3 text-warning">
+                    {% for gap in case.ai_recommendation.information_gaps %}
+                    <li>{{ gap }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                {% if case.ai_recommendation.guideline_alignment %}
+                <h6><i class="bi bi-book me-2"></i>Guideline Alignment</h6>
+                <p class="text-muted">{{ case.ai_recommendation.guideline_alignment }}</p>
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-lightbulb" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Process case to get AI recommendation</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if case.status != 'pending' %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-envelope me-2"></i>Decision & Letters
+            </div>
+            <div class="card-body">
+                <form action="/case/{{ case.id }}/decide" method="POST">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5>Final Decision</h5>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="final_decision" id="approve" value="approve" {% if case.final_decision == 'approve' %}checked{% endif %} required>
+                                <label class="btn btn-outline-success" for="approve"><i class="bi bi-check-circle me-1"></i>Approve</label>
+                                
+                                <input type="radio" class="btn-check" name="final_decision" id="deny" value="deny" {% if case.final_decision == 'deny' %}checked{% endif %}>
+                                <label class="btn btn-outline-danger" for="deny"><i class="bi bi-x-circle me-1"></i>Deny</label>
+                                
+                                <input type="radio" class="btn-check" name="final_decision" id="pend" value="pend" {% if case.final_decision == 'pend' %}checked{% endif %}>
+                                <label class="btn btn-outline-warning" for="pend"><i class="bi bi-pause-circle me-1"></i>Pend</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label">Decision Notes (Optional)</label>
+                            <textarea class="form-control" name="decision_notes" rows="2" placeholder="Add any notes about this decision...">{{ case.final_decision_notes or '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <ul class="nav nav-pills mb-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#providerLetter" type="button">
+                                <i class="bi bi-person-badge me-1"></i>Provider Letter
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#memberLetter" type="button">
+                                <i class="bi bi-person me-1"></i>Member Letter
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="providerLetter">
+                            <textarea class="form-control letter-textarea" name="provider_letter" placeholder="Provider letter will be generated by AI...">{{ case.provider_letter or '' }}</textarea>
+                        </div>
+                        <div class="tab-pane fade" id="memberLetter">
+                            <textarea class="form-control letter-textarea" name="member_letter" placeholder="Member letter will be generated by AI...">{{ case.member_letter or '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="/" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Cases
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg" {% if case.status == 'decided' %}onclick="return confirm('This will update the existing decision. Continue?')"{% endif %}>
+                            <i class="bi bi-check2-circle me-2"></i>
+                            {% if case.status == 'decided' %}Update Decision{% else %}Finalize Decision{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function processCase(caseId) {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    
+    overlay.classList.add('active');
+    
+    const steps = [
+        'Extracting clinical data from PA request...',
+        'Analyzing biomarkers and disease stage...',
+        'Evaluating policy criteria...',
+        'Generating AI recommendation...',
+        'Drafting provider and member letters...',
+        'Finalizing case summary...'
+    ];
+    
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+        if (stepIndex < steps.length) {
+            loadingText.textContent = steps[stepIndex];
+            stepIndex++;
+        }
+    }, 2000);
+    
+    try {
+        const response = await fetch(`/case/${caseId}/process`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        clearInterval(stepInterval);
+        
+        if (response.ok) {
+            loadingText.textContent = 'Processing complete! Refreshing...';
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            const error = await response.json();
+            alert('Error processing case: ' + (error.detail || 'Unknown error'));
+            overlay.classList.remove('active');
+        }
+    } catch (error) {
+        clearInterval(stepInterval);
+        alert('Error processing case: ' + error.message);
+        overlay.classList.remove('active');
+    }
+}
+</script>
+{% endblock %}

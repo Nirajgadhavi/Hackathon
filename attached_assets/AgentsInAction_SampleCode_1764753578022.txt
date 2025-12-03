@@ -1,0 +1,161 @@
+import os
+
+import time
+
+from azure.identity import ClientSecretCredential
+
+from azure.ai.projects import AIProjectClient
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+
+def main():
+
+    # Retrieve credentials from environment (or config)
+
+    tenant_id = os.getenv("7c0c36f5-af83-4c24-8844-9962e0163719")
+
+    client_id = os.getenv("32728bd1-9802-42dc-b734-63254e334aba")
+
+    client_secret = os.getenv("MKS8Q~J~85wDChkPVJWMlH4Fqm9AS2ZSzteSWcX2")
+
+    endpoint = os.getenv("https://agentsinactionfoundry.services.ai.azure.com/api/projects/proj-default")
+
+
+
+    if not all([tenant_id, client_id, client_secret, endpoint]):
+
+        raise ValueError("Missing one or more required environment variables: "
+
+                         "TENANT_ID, CLIENT_ID, CLIENT_SECRET, PROJECT_ENDPOINT")
+
+
+
+    creds = ClientSecretCredential(
+
+        tenant_id=tenant_id,
+
+        client_id=client_id,
+
+        client_secret=client_secret
+
+    )
+
+
+
+    project = AIProjectClient(
+
+        credential=creds,
+
+        endpoint=endpoint
+
+    )
+
+
+
+    print("Project client initialized:", project)
+
+
+
+    # Create new agent
+
+    agent = project.agents.create_agent(
+
+        model="gpt-4o-mini",
+
+        name="Blackhole",
+
+        instructions="You are a helpful assistant."
+
+    )
+
+    print(f"Created agent with ID: {agent.id}")
+
+
+
+    # Start a new thread 
+
+    thread = project.agents.threads.create()
+
+    print(f"Thread created; ID: {thread.id}")
+
+
+
+    # Post user message
+
+    user_message = "Explain reinforcement learning"
+
+    project.agents.messages.create(
+
+        thread_id=thread.id,
+
+        role="user",
+
+        content=user_message
+
+    )
+
+    print(f"Sent user message: {user_message!r}")
+
+
+
+    # Trigger agent run
+
+    run = project.agents.runs.create_and_process(
+
+        thread_id=thread.id,
+
+        agent_id=agent.id
+
+    )
+
+    print(f"Run started; Run ID: {run.id}")
+
+
+
+    # Poll for completion
+
+    while True:
+
+        response = project.agents.runs.get(thread_id=thread.id, run_id=run.id)
+
+        status = response.status
+
+        print(f"Run status: {status}")
+
+        if status in ("completed", "failed"):
+
+            break
+
+        time.sleep(1)
+
+
+
+    if status == "completed":
+
+        print("Run completed successfully. Fetching messages...")
+
+        messages = list(project.agents.messages.list(thread_id=thread.id))
+
+        for msg in messages:
+
+            if msg.role == "assistant":
+
+                print("\nAssistant says:")
+
+                print(msg.content[0].text)
+
+    else:
+
+        print("Run failed. Response:", response)
+
+
+
+if __name__ == "__main__":
+
+    main()
+
+ 

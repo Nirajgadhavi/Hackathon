@@ -1,0 +1,302 @@
+Minimum viable solution = one narrow but fully working AI co-pilot for specialty drug PAs, not a whole enterprise platform.
+
+I’ll lay it out as:
+
+MVP scope (exactly what it will and will not do)
+
+Tech stack
+
+Azure Foundry agent design (using your sample)
+
+Components & data
+
+End-to-end flow for the demo
+
+1. MVP Scope
+What the MVP does
+
+For a single line of business / single drug family (e.g., one oncology drug with a clear policy):
+
+Ingest a PA request
+
+Reviewer pastes or uploads a synthetic PA note (text or PDF → text).
+
+System stores the raw text and links to a pre-chosen policy.
+
+Generate an AI case summary
+
+Agent extracts: diagnosis, stage, prior therapy, key labs/biomarkers, comorbidities.
+
+Shows a structured summary card for the Medical Director.
+
+Run a policy checklist (simple rules engine)
+
+Compare the extracted case against one payer policy for that drug:
+
+Stage criteria
+
+Biomarker criteria
+
+Prior therapy criteria
+
+Show met / unmet / unknown per criterion.
+
+Get an AI recommendation + rationale
+
+Agent generates a JSON object: approve / deny / pend, reasons, info gaps.
+
+Simple triage tag: “low complexity” if all criteria met; “high complexity” otherwise.
+
+Draft provider + member letters
+
+Agent drafts two texts:
+
+Provider letter: clinical, references policy and evidence.
+
+Member letter: simpler language.
+
+Reviewer can edit the text before finalizing.
+
+Log & audit
+
+Store: PA ID, summary, policy status, recommendation, final human decision.
+
+Very simple dashboard: list of processed cases with decision and turnaround time (simulated).
+
+What the MVP does NOT do (on purpose)
+
+No real integration with NCCN/ICER APIs (just synthetic guideline text).
+
+No real-time connection to payer core systems or claims.
+
+No multi-drug, multi-specialty configuration (limit to 1–2 policies).
+
+No advanced ML triage model (just rules + a simple score).
+
+That keeps the build small but demonstrates the full before/after story from your project statement.
+
+2. Suggested Tech Stack
+
+Pick something that you can code fast and that plays nicely with Azure:
+
+Backend: Python + FastAPI
+
+Frontend: FastAPI + Jinja2 templates (simple HTML/CSS dashboard)
+
+Data storage:
+
+JSON / SQLite for policies, cases, logs
+
+LLM / agents: Azure AI Foundry Agents API (your sample code pattern)
+
+RAG / knowledge: In MVP, simple in-memory text snippets (upgrade to Azure AI Search if time allows)
+
+3. Azure Foundry Agent Design (using your sample)
+
+Your sample code does this: initialize client → create agent → create thread → send message → run → poll → read assistant response.
+
+For the MVP, adapt it as follows:
+
+3.1 One reusable agent, not a new one each time
+
+Once (via script or Portal):
+
+Create an agent with:
+
+model: a gpt-4 class or gpt-4o-mini
+
+instructions: system prompt like:
+
+“You are a clinical prior authorization co-pilot for a health plan. You never make final decisions; you prepare structured summaries, recommendations, and draft letters based on policy and evidence. You must always obey the policy JSON when provided, and output valid JSON when asked.”
+
+Store the resulting AGENT_ID in an environment variable.
+
+In app code, re-use this AGENT_ID instead of creating a fresh agent.
+
+3.2 Wrap the sample into a helper
+
+Turn your sample into a reusable helper:
+
+# services/azure_agent_client.py
+def run_agent(task_prompt: str) -> str:
+    # 1) create thread
+    # 2) add user message with task_prompt
+    # 3) create_and_process run
+    # 4) poll status
+    # 5) return assistant text from latest assistant message
+
+
+You will call run_agent() with different task prompts for:
+
+Case extraction
+
+Recommendation JSON
+
+Letter generation
+
+The underlying agent, credentials, and thread logic are all reused from your reference sample.
+
+4. Components & Data for the MVP
+4.1 Data
+
+Synthetic PA cases (3–5 JSON entries)
+
+Case ID, title, raw text, linked policy ID.
+
+Cover three scenarios:
+
+Clear approval
+
+Clear denial
+
+Missing info → pend
+
+Policies (1–2 policies max)
+
+For each policy:
+
+Policy ID
+
+Drug name, indication
+
+Criteria list (C1, C2, C3):
+
+Description
+
+Type: stage / biomarker / prior_therapy
+
+Is_required: true/false
+
+Guideline snippets
+
+For each policy:
+
+2–3 short paragraphs approximating NCCN/ICER/internal guidance.
+
+These are static JSON files or rows in a tiny SQLite DB in the MVP.
+
+4.2 Backend services
+
+A. Policy engine (rule-based)
+
+Loads policies.
+
+Given CaseStructured + Policy, outputs a list:
+
+criteria_id
+
+description
+
+status: met / unmet / unknown
+
+evidence_snippet: short explanation
+
+B. AzureFoundry client
+
+Uses your AIProjectClient / Agent code under the hood.
+
+Exposes functions:
+
+def extract_case(pa_text: str) -> dict  # JSON
+def recommend(case_json: dict, policy_json: dict, criteria: list, guidelines: list) -> dict
+def draft_letters(recommendation_json: dict, policy_description: str) -> dict
+
+
+C. Orchestration / pipeline
+
+For each PA:
+
+extract_case → CaseStructured
+
+Policy engine → criteria evaluation
+
+recommend → Recommendation JSON (approve/deny/pend, reasons)
+
+draft_letters → provider + member letters
+
+Store everything, return to UI.
+
+4.3 Frontend (simple but judge-friendly)
+
+One small FastAPI/Jinja app is enough:
+
+Page 1: Case list
+
+Table with: Case ID, title, linked policy, status (not reviewed / reviewed).
+
+Page 2: Case detail (co-pilot screen)
+Three main panels:
+
+Raw Request & Summary
+
+Raw PA text (scrollable).
+
+AI-generated structured summary card (diagnosis, stage, prior treatments, labs).
+
+Policy Alignment
+
+Policy name / indication.
+
+Criteria table with met / unmet / unknown chips.
+
+Guideline snippets below.
+
+Recommendation & Letters
+
+Badge: AI suggested decision (approve/deny/pend) + triage label (low/high complexity).
+
+Key reasons + info gaps bullet list.
+
+Provider letter (editable textarea).
+
+Member letter (editable textarea).
+
+Radio buttons: final human decision (approve / deny / pend) + “Save”.
+
+That’s enough to visually tell the story: before, everything is manual; now one screen shows everything already assembled.
+
+5. End-to-End Flow (Demo Story)
+
+For judges, your “happy path” looks like this:
+
+Choose a complex oncology PA case on the home screen.
+
+On click:
+
+Backend calls Azure agent for case extraction.
+
+Policy engine runs checklist.
+
+Azure agent generates recommendation JSON.
+
+Azure agent drafts letters.
+
+Co-pilot screen shows:
+
+Structured summary that would normally take 25–40 minutes to piece together.
+
+Policy criteria colored by status (met/unmet/unknown).
+
+Suggested decision (e.g., “approve”) with 3–4 reasons.
+
+Draft provider and member letters that the Medical Director can quickly edit and sign off.
+
+Reviewer tweaks a sentence, clicks Finalize, and you log the decision.
+
+You can then verbally tie it back to your metrics:
+
+“This screen is what reduces MD review from ~30 min to under 10.”
+
+“These consistent criteria & rationale are what cut appeals by ~30–40%.”
+
+“Fast turnaround on these PAs is what reduces therapy drop-offs from 12–18% to below 5%.”
+
+TL;DR – Minimum Viable Solution
+
+One agent in Azure Foundry, re-used for three tasks (summarize, recommend, draft letters).
+
+One policy / one drug family, three synthetic cases (approve / deny / pend).
+
+One small FastAPI app with a co-pilot screen that shows: raw PA, AI summary, policy checklist, AI recommendation, and draft letters.
+
+Simple rule engine + Json-based RAG (no heavy infra).
