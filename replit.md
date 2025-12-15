@@ -19,15 +19,17 @@ MVP implementation complete with:
 - Automated letter generation
 
 ## Tech Stack
-- **Backend**: Python 3.11 + FastAPI
-- **Frontend**: Jinja2 templates + Bootstrap 5
+- **Backend**: Python 3.11 + FastAPI (REST API)
+- **Frontend**: Vue 3 + TypeScript + Vite
+- **State Management**: Pinia
+- **Routing**: Vue Router
 - **Database**: SQLite (pa_copilot.db)
 - **AI**: OpenAI GPT-4o for clinical analysis
-- **Server**: Uvicorn on port 5000
+- **Styling**: Custom CSS (based on Bootstrap design)
 
 ## Project Structure
 ```
-├── main.py                      # FastAPI application entry point
+├── main.py                      # FastAPI REST API entry point
 ├── src/
 │   ├── models/
 │   │   └── database.py          # SQLite database models and queries
@@ -36,12 +38,19 @@ MVP implementation complete with:
 │   │   └── policy_engine.py     # Rule-based criteria evaluation
 │   └── data/
 │       └── seed_data.py         # Synthetic cases and policies
-├── templates/
-│   ├── base.html                # Base template with navigation
-│   ├── index.html               # Case list dashboard
-│   ├── case_detail.html         # Co-pilot review screen
-│   └── metrics.html             # Performance metrics
-└── static/                      # Static assets
+├── frontend/                    # Vue 3 SPA
+│   ├── src/
+│   │   ├── views/               # Page components (Dashboard, CaseDetail, Metrics)
+│   │   ├── components/          # Shared components (AppLayout)
+│   │   ├── stores/              # Pinia stores (cases, metrics, app)
+│   │   ├── services/            # API service layer
+│   │   ├── types/               # TypeScript interfaces
+│   │   ├── router/              # Vue Router configuration
+│   │   ├── App.vue              # Root component
+│   │   └── main.ts              # Application entry point
+│   ├── vite.config.ts           # Vite configuration with API proxy
+│   └── package.json             # Node.js dependencies
+└── templates/                   # Legacy Jinja2 templates (archived)
 ```
 
 ## Key Features
@@ -51,14 +60,28 @@ MVP implementation complete with:
 4. **AI Recommendations**: Approve/Deny/Pend with clinical rationale
 5. **Metrics Dashboard**: Track turnaround times and decision consistency
 
+## API Endpoints
+- `GET /api/cases` - List all cases
+- `GET /api/cases/{id}` - Get case details
+- `POST /api/cases/{id}/process` - Process case with AI
+- `POST /api/cases/{id}/decide` - Submit decision
+- `GET /api/metrics` - Get performance metrics
+- `GET /api/status` - Get demo mode status
+- `GET /api/health` - Health check
+
 ## Environment Variables
-- `OPENAI_API_KEY`: Required for AI-powered case analysis
+- `OPENAI_API_KEY`: Required for AI-powered case analysis (optional for demo mode)
 
 ## Running the Application
-```bash
-python main.py
-```
-The server starts on http://0.0.0.0:5000
+The application runs with two workflows:
+
+**Frontend (Vue 3):**
+- Runs on port 5000 with Vite dev server
+- Proxies API requests to backend on port 8000
+
+**Backend (FastAPI):**
+- Runs on port 8000 with Uvicorn
+- Serves REST API endpoints
 
 ## Demo Flow
 1. Select a PA case from the dashboard
@@ -76,12 +99,22 @@ The server starts on http://0.0.0.0:5000
 | Appeals Rate | High | 30-45% lower |
 
 ## User Preferences
-- Professional healthcare UI with Bootstrap 5
+- Professional healthcare UI
 - Color-coded status indicators (met/unmet/unknown)
 - Editable draft letters before finalization
+- Vue 3 SPA for modern, responsive experience
 
 ## Recent Changes
+- December 8, 2025: Converted to Vue 3 SPA
+  - Created Vue 3 frontend with Vite, Vue Router, and Pinia
+  - Refactored FastAPI to serve JSON REST API
+  - Implemented Dashboard, Case Detail, and Metrics views
+  - Added TypeScript types and API service layer
+  - Configured dual workflow (Frontend on 5000, Backend on 8000)
+- December 8, 2025: Configured for Replit environment
+  - Set up uv-based workflow on port 5000
+  - Added Python and Node.js .gitignore entries
 - December 2024: Initial MVP implementation
-- Added 5 synthetic oncology cases
-- Implemented rule-based policy engine
-- Created co-pilot dashboard with AI integration
+  - Added 5 synthetic oncology cases
+  - Implemented rule-based policy engine
+  - Created co-pilot dashboard with AI integration
